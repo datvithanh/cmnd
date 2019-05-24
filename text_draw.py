@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import random 
 import os
+from argparse import ArgumentParser
 
 class TextDraw:
     def __init__(self, font_path, out_dir = 'data/train'):
@@ -49,7 +50,7 @@ class TextDraw:
         text_img = text_img.resize((int(text_img.size[0]*back_ground_size[1]/(text_img.size[1])), back_ground_size[1]))
 
         #cut bg image
-        start = random.randint(0, back_ground_img.size[0] - text_img.size[0])
+        start = random.randint(0, max(1, back_ground_img.size[0] - text_img.size[0]))
         border = (start, 0, back_ground_img.size[0] - start - text_img.size[0], 0 ) # left, up, right, bottom
         back_ground_img = ImageOps.crop(back_ground_img, border)
 
@@ -168,10 +169,20 @@ class DataGenerator:
             if r == 1:
                 self.gen_cmnd(i)
 
+def parse_arguments():
+    parser = ArgumentParser()
+
+    parser.add_argument('-t', '--train', type=int, default=2000, help='Number of Train')
+    parser.add_argument('-v', '--valid', type=int, default=200, help='Number of Test')
+
+    return parser.parse_args()
+
 # def draw_cmnd():
 if __name__ == "__main__":
-    train_gen = DataGenerator(samples = 5000, valid = False)
-    valid_gen = DataGenerator(samples = 500, valid = True)
+    args_ = parse_arguments()
+
+    train_gen = DataGenerator(samples = args_.train, valid = False)
+    valid_gen = DataGenerator(samples = args_.valid, valid = True)
     train_gen.generate()
     valid_gen.generate()
     
