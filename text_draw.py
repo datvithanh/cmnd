@@ -38,7 +38,7 @@ class TextDraw:
 
         #get font-size
         scale_coeff = random.randint(2,8)
-        scale_coeff = 2
+
         # print(text, scale_coeff)
         font_size = self.text_font(back_ground_size[1], text, scale_coeff)
         if font_size == None:
@@ -46,12 +46,20 @@ class TextDraw:
         font = ImageFont.truetype(self.font_path, font_size)
         text_size = font.getsize(text)
 
+        #mean bg color
+        img_arr = np.array(back_ground_img)
+        average_color = [int(x) for x in np.mean(img_arr, axis=(0, 1))[:3]]
+        min_channel = min(average_color) - 20
+        average_color = [x - min_channel for x in average_color]
+
         #draw text
         text_img = Image.new('RGBA', (text_size[0], text_size[1] + 20), (0, 0, 0, 0))
         draw = ImageDraw.Draw(text_img)
-        draw.text((0,13 + random.randint(-1,1)), text, font=font, fill=(0,0,0))
+        draw.text((0,13 + random.randint(-1,1)), text, font=font, fill=tuple(average_color))
         text_img = text_img.resize((int(text_img.size[0]*back_ground_size[1]/(text_img.size[1])), back_ground_size[1]))
-
+        if random.randint(0,1) <= 0.2:
+            text_img = text_img.rotate(random.uniform(-2,2))
+            
         #cut bg image
         start = random.randint(0, max(1, back_ground_img.size[0] - text_img.size[0]))
         border = (start, 0, back_ground_img.size[0] - start - text_img.size[0], 0 ) # left, up, right, bottom
@@ -71,6 +79,7 @@ class DataGenerator:
         outdir = "data/train" if valid == False else "data/valid"
 
         self.cmnd_drawer = TextDraw("data/font/cmnd_text.ttf", out_dir = outdir)
+        self.cmnd_id_drawer = TextDraw("data/font/cmnd_id.ttf", out_dir = outdir)
         self.cccd_drawer = TextDraw("data/font/cccd_text.ttf", out_dir = outdir)
         self.cmnd_old_drawer = TextDraw("data/font/cmnd_old_text.ttf", out_dir = outdir)
 
@@ -158,9 +167,7 @@ class DataGenerator:
         else:
             te, ns, nq, hk = self.cmnd_bg_info(self.cmnd_bg_valid, self.cmnd_bg_valid_path)      
 
-        r = random.randint(1, 10)
-
-        if r <= 3:
+        if random.uniform(0,1) <= 0.3:
             drawer = self.cmnd_old_drawer
         else:
             drawer = self.cmnd_drawer
@@ -179,8 +186,8 @@ class DataGenerator:
     def generate(self):
         for i in range(self.samples):
             print(i, self.valid)
-            r = random.randint(1, 10)
-            if r <= 3:
+
+            if random.uniform(0,1) <= 0.3:
                 self.gen_cccd(i)
             else:
                 self.gen_cmnd(i)
@@ -200,10 +207,6 @@ if __name__ == "__main__":
     valid_gen = DataGenerator(samples = args_.valid, valid = True)
     train_gen.generate()
     valid_gen.generate()
-
-    # text_drawer = TextDraw("data/font/palatino_linotype.ttf", './')
-    # text_drawer = TextDraw("data/font/cccd_text.ttf", './')
-    # text_drawer.draw_text('1_id.png', '113726913', 'results.png')
 
     # text_drawer = TextDraw("data/font/arial.ttf", './')
     # text_drawer.draw_text('6.png', 'Nguyễn', 'results.png')
