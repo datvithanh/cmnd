@@ -2,6 +2,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import random 
 import os
 from argparse import ArgumentParser
+import cv2
+import numpy as np
 
 class TextDraw:
     def __init__(self, font_path, out_dir = 'data/train'):
@@ -35,11 +37,12 @@ class TextDraw:
         back_ground_size = back_ground_img.size
 
         #get font-size
-        scale_coeff = random.randint(1,10)
+        scale_coeff = random.randint(2,8)
+        scale_coeff = 2
         # print(text, scale_coeff)
         font_size = self.text_font(back_ground_size[1], text, scale_coeff)
         if font_size == None:
-            return None
+            return False
         font = ImageFont.truetype(self.font_path, font_size)
         text_size = font.getsize(text)
 
@@ -59,6 +62,7 @@ class TextDraw:
         result_img.paste(back_ground_img, (0,0))
         result_img.paste(text_img, (0,0), mask=text_img)
         result_img.save(os.path.join(self.out_dir, output_file), format="png")
+        return True
 
 class DataGenerator:
     def __init__(self, samples = 5000, valid = False):
@@ -66,20 +70,21 @@ class DataGenerator:
 
         outdir = "data/train" if valid == False else "data/valid"
 
-        self.cmnd_drawer = TextDraw("data/font/palatino_linotype.ttf", out_dir = outdir)
-        self.cccd_drawer = TextDraw("data/font/arial.ttf", out_dir = outdir)
+        self.cmnd_drawer = TextDraw("data/font/cmnd_text.ttf", out_dir = outdir)
+        self.cccd_drawer = TextDraw("data/font/cccd_text.ttf", out_dir = outdir)
+        self.cmnd_old_drawer = TextDraw("data/font/cmnd_old_text.ttf", out_dir = outdir)
 
         self.cmnd_bg_path = 'data/crop/cmnd'
-        self.cmnd_bg = os.listdir(self.cmnd_bg_path)
+        self.cmnd_bg = [x for x in os.listdir(self.cmnd_bg_path) if x.endswith('.png')]
 
         self.cccd_bg_path = 'data/crop/cccd'
-        self.cccd_bg = os.listdir(self.cccd_bg_path)
+        self.cccd_bg = [x for x in os.listdir(self.cccd_bg_path) if x.endswith('.png')]
 
         self.cmnd_bg_valid_path = 'data/crop/valid_cmnd'
-        self.cmnd_bg_valid = os.listdir(self.cmnd_bg_valid_path)
+        self.cmnd_bg_valid = [x for x in os.listdir(self.cmnd_bg_valid_path) if x.endswith('.png')]
 
         self.cccd_bg_valid_path = 'data/crop/valid_cccd'
-        self.cccd_bg_valid = os.listdir(self.cccd_bg_valid_path)
+        self.cccd_bg_valid = [x for x in os.listdir(self.cccd_bg_valid_path) if x.endswith('.png')]
 
         self.valid = valid
 
@@ -108,27 +113,31 @@ class DataGenerator:
     def write_label(self, image_path, label):
         self.labelf.write(f"{image_path}\t{label}\n")
 
+    def valid_word(self, word):
+        # word = trim(word)
+        pass
+
     def draw(self, drawer, sample_idx, te, ns, nq, hk):
         name, bday, addr1, addr2 = self.person_info()
 
         #draw te
         for idx, word in enumerate(name.split(' ')):
-            drawer.draw_text(te, word.upper(), f'{sample_idx}_te_{idx}.png')
-            self.write_label(f'{sample_idx}_te_{idx}.png', word.upper())
+            if drawer.draw_text(te, word.upper(), f'{sample_idx}_te_{idx}.png'):
+                self.write_label(f'{sample_idx}_te_{idx}.png', word.upper())
 
         #draw ns
-        drawer.draw_text(ns, bday, f'{sample_idx}_ns.png')
-        self.write_label(f'{sample_idx}_ns.png', bday)
+        if drawer.draw_text(ns, bday, f'{sample_idx}_ns.png'):
+            self.write_label(f'{sample_idx}_ns.png', bday)
 
         #draw nq
         for idx, word in enumerate(addr1.split(' ')):
-            drawer.draw_text(nq, word, f'{sample_idx}_nq_{idx}.png')
-            self.write_label(f'{sample_idx}_nq_{idx}.png', word)
+            if drawer.draw_text(nq, word, f'{sample_idx}_nq_{idx}.png'):
+                self.write_label(f'{sample_idx}_nq_{idx}.png', word)
         
         #draw hk
         for idx, word in enumerate(addr2.split(' ')):
-            drawer.draw_text(hk, word, f'{sample_idx}_hk_{idx}.png')
-            self.write_label(f'{sample_idx}_hk_{idx}.png', word)
+            if drawer.draw_text(hk, word, f'{sample_idx}_hk_{idx}.png'):
+                self.write_label(f'{sample_idx}_hk_{idx}.png', word)
 
     
     def cmnd_bg_info(self, bg_arr, bg_path):
@@ -149,7 +158,14 @@ class DataGenerator:
         else:
             te, ns, nq, hk = self.cmnd_bg_info(self.cmnd_bg_valid, self.cmnd_bg_valid_path)      
 
-        self.draw(self.cmnd_drawer, sample_idx, te, ns, nq, hk)
+        r = random.randint(1, 10)
+
+        if r <= 3:
+            drawer = self.cmnd_old_drawer
+        else:
+            drawer = self.cmnd_drawer
+        
+        self.draw(drawer, sample_idx, te, ns, nq, hk)
 
     def gen_cccd(self, sample_idx):
         if self.valid == False:
@@ -163,21 +179,20 @@ class DataGenerator:
     def generate(self):
         for i in range(self.samples):
             print(i, self.valid)
-            r = random.randint(0, 1)
-            if r == 0:
+            r = random.randint(1, 10)
+            if r <= 3:
                 self.gen_cccd(i)
-            if r == 1:
+            else:
                 self.gen_cmnd(i)
 
 def parse_arguments():
     parser = ArgumentParser()
 
-    parser.add_argument('-t', '--train', type=int, default=2000, help='Number of Train')
-    parser.add_argument('-v', '--valid', type=int, default=200, help='Number of Test')
+    parser.add_argument('-t', '--train', type=int, default=1, help='Number of Train')
+    parser.add_argument('-v', '--valid', type=int, default=1, help='Number of Test')
 
     return parser.parse_args()
 
-# def draw_cmnd():
 if __name__ == "__main__":
     args_ = parse_arguments()
 
@@ -185,7 +200,11 @@ if __name__ == "__main__":
     valid_gen = DataGenerator(samples = args_.valid, valid = True)
     train_gen.generate()
     valid_gen.generate()
-    
+
+    # text_drawer = TextDraw("data/font/palatino_linotype.ttf", './')
+    # text_drawer = TextDraw("data/font/cccd_text.ttf", './')
+    # text_drawer.draw_text('1_id.png', '113726913', 'results.png')
+
     # text_drawer = TextDraw("data/font/arial.ttf", './')
     # text_drawer.draw_text('6.png', 'Nguyễn', 'results.png')
 
