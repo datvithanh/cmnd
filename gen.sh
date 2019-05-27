@@ -1,5 +1,5 @@
-TRAIN=10
-VALID=10
+TRAIN=5
+VALID=3
 
 rm -rf data/train 
 rm -rf data/valid

@@ -57,12 +57,16 @@ class TextDraw:
         draw = ImageDraw.Draw(text_img)
         draw.text((0,13 + random.randint(-1,1)), text, font=font, fill=tuple(average_color))
         text_img = text_img.resize((int(text_img.size[0]*back_ground_size[1]/(text_img.size[1])), back_ground_size[1]))
-        if random.randint(0,1) <= 0.2:
+        if random.uniform(0,1) <= 0.2:
             text_img = text_img.rotate(random.uniform(-2,2))
-            
+        img_arr = np.sum(np.sum(np.array(text_img), axis=1), axis=1)
+        top_idx = max(0, [i for i,x in enumerate(img_arr) if x][0] - random.randint(2,10))
+        bot_idx = text_img.size[1] - min([i for i,x in reversed(list(enumerate(img_arr))) if x][0] + random.randint(2,10), text_img.size[1])
+        text_img = ImageOps.crop(text_img, (0, top_idx, 0, bot_idx))
+
         #cut bg image
         start = random.randint(0, max(1, back_ground_img.size[0] - text_img.size[0]))
-        border = (start, 0, back_ground_img.size[0] - start - text_img.size[0], 0 ) # left, up, right, bottom
+        border = (start, top_idx, back_ground_img.size[0] - start - text_img.size[0], bot_idx) # left, up, right, bottom
         back_ground_img = ImageOps.crop(back_ground_img, border)
 
         #draw text with bg
@@ -103,6 +107,8 @@ class DataGenerator:
         self.dates = [x for x in f.readlines()[0].replace('\n', '').split(',')]
         f = open('addresses.txt', 'r')
         self.addresses = [x for x in f.readlines()[0].replace('\n', '').split('|')]
+        f = open('charset_size206.txt', 'r')
+        self.valid_chars = [x.replace('\n','').split('\t')[1] for x in f.readlines()]
 
         self.labelf = open(os.path.join(outdir, 'label.txt'), 'w+')
 
@@ -123,15 +129,24 @@ class DataGenerator:
         self.labelf.write(f"{image_path}\t{label}\n")
 
     def valid_word(self, word):
-        # word = trim(word)
-        pass
+        for c in self.valid_chars:
+            word = word.replace(c, '')
+        if word.strip() == '':
+            return False
+        return True
+
+    def transform(self, word):
+        for c in self.valid_chars:
+            word = word.replace(c, '')
+        return word
 
     def draw(self, drawer, sample_idx, te, ns, nq, hk):
         name, bday, addr1, addr2 = self.person_info()
 
         #draw te
         for idx, word in enumerate(name.split(' ')):
-            if drawer.draw_text(te, word.upper(), f'{sample_idx}_te_{idx}.png'):
+            if drawer.draw_text(te, word.upper(), f'{sample_idx}_te_{idx}.png') and self.valid_word(word):
+                word = self.transform(word)
                 self.write_label(f'{sample_idx}_te_{idx}.png', word.upper())
 
         #draw ns
@@ -140,12 +155,14 @@ class DataGenerator:
 
         #draw nq
         for idx, word in enumerate(addr1.split(' ')):
-            if drawer.draw_text(nq, word, f'{sample_idx}_nq_{idx}.png'):
+            if drawer.draw_text(nq, word, f'{sample_idx}_nq_{idx}.png') and self.valid_word(word):
+                word = self.transform(word)
                 self.write_label(f'{sample_idx}_nq_{idx}.png', word)
         
         #draw hk
         for idx, word in enumerate(addr2.split(' ')):
-            if drawer.draw_text(hk, word, f'{sample_idx}_hk_{idx}.png'):
+            if drawer.draw_text(hk, word, f'{sample_idx}_hk_{idx}.png') and self.valid_word(word):
+                word = self.transform(word)
                 self.write_label(f'{sample_idx}_hk_{idx}.png', word)
 
     
@@ -208,55 +225,5 @@ if __name__ == "__main__":
     train_gen.generate()
     valid_gen.generate()
 
-    # text_drawer = TextDraw("data/font/arial.ttf", './')
+    # text_drawer = TextDraw("data/font/cmnd_text.ttf", './')
     # text_drawer.draw_text('6.png', 'Nguyễn', 'results.png')
-
-
-    # text_drawer = TextDraw("data/font/arial.ttf")
-    # text_drawer.draw_text('6.png', 'Hưng', 'results.png')
-
-
-    # text_drawer = TextDraw("data/font/palatino_linotype.ttf")
-
-    # f = open('vnpernames.txt', 'r')
-    # names = [x.replace('\n', '') for x in f.readlines()]
-
-    # f = open('dates.txt', 'r')
-    # dates = [x for x in f.readlines()[0].replace('\n', '').split(',')]
-
-    # f = open('addresses.txt', 'r')
-    # addresses = [x for x in f.readlines()[0].replace('\n', '').split('|')]
-
-    # for i in range(1):
-    #     name = random.choice(names)
-    #     bday = random.choice(dates)
-    #     addr1 = random.choice(addresses)
-    #     addr2 = random.choice(addresses)
-
-    #     print(i+1)
-    #     print(name)
-    #     print(bday)
-    #     print(addr1)
-    #     print(addr2)
-
-    #     img_dir = 'data/crop/cmnd'
-    #     imgs = os.listdir(img_dir)
-    #     te = random.choice([x for x in imgs if 'te' in x])
-    #     ns = random.choice([x for x in imgs if 'ns' in x])
-    #     nq = random.choice([x for x in imgs if 'nq' in x])
-    #     hk = random.choice([x for x in imgs if 'hk' in x])
-
-    #     #draw te
-    #     for idx, word in enumerate(name.split(' ')):
-    #         text_drawer.draw_text(os.path.join(img_dir, te), word.upper(), f'{i+1}_te_{idx}.png')
-
-    #     #draw ns
-    #     text_drawer.draw_text(os.path.join(img_dir, ns), bday, f'{i+1}_ns.png')
-
-    #     #draw nq
-    #     for idx, word in enumerate(addr1.split(' ')):
-    #         text_drawer.draw_text(os.path.join(img_dir, nq), word, f'{i+1}_nq_{idx}.png')
-        
-    #     #draw hk
-    #     for idx, word in enumerate(addr2.split(' ')):
-    #         text_drawer.draw_text(os.path.join(img_dir, hk), word, f'{i+1}_hk_{idx}.png')
