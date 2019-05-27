@@ -129,15 +129,17 @@ class DataGenerator:
         self.labelf.write(f"{image_path}\t{label}\n")
 
     def valid_word(self, word):
-        for c in self.valid_chars:
-            word = word.replace(c, '')
+        for c in word:
+            if c not in self.valid_chars:
+                word = word.replace(c, '')
         if word.strip() == '':
             return False
         return True
 
     def transform(self, word):
-        for c in self.valid_chars:
-            word = word.replace(c, '')
+        for c in word:
+            if c not in self.valid_chars:
+                word = word.replace(c, '')
         return word
 
     def draw(self, drawer, sample_idx, te, ns, nq, hk):
@@ -145,9 +147,10 @@ class DataGenerator:
 
         #draw te
         for idx, word in enumerate(name.split(' ')):
-            if drawer.draw_text(te, word.upper(), f'{sample_idx}_te_{idx}.png') and self.valid_word(word):
+            if self.valid_word(word):
                 word = self.transform(word)
-                self.write_label(f'{sample_idx}_te_{idx}.png', word.upper())
+                if drawer.draw_text(te, word.upper(), f'{sample_idx}_te_{idx}.png'):
+                    self.write_label(f'{sample_idx}_te_{idx}.png', word.upper())
 
         #draw ns
         if drawer.draw_text(ns, bday, f'{sample_idx}_ns.png'):
@@ -155,15 +158,17 @@ class DataGenerator:
 
         #draw nq
         for idx, word in enumerate(addr1.split(' ')):
-            if drawer.draw_text(nq, word, f'{sample_idx}_nq_{idx}.png') and self.valid_word(word):
+            if self.valid_word(word):
                 word = self.transform(word)
-                self.write_label(f'{sample_idx}_nq_{idx}.png', word)
+                if drawer.draw_text(nq, word, f'{sample_idx}_nq_{idx}.png'):
+                    self.write_label(f'{sample_idx}_nq_{idx}.png', word)
         
         #draw hk
         for idx, word in enumerate(addr2.split(' ')):
-            if drawer.draw_text(hk, word, f'{sample_idx}_hk_{idx}.png') and self.valid_word(word):
+            if self.valid_word(word):
                 word = self.transform(word)
-                self.write_label(f'{sample_idx}_hk_{idx}.png', word)
+                if drawer.draw_text(hk, word, f'{sample_idx}_hk_{idx}.png'):
+                    self.write_label(f'{sample_idx}_hk_{idx}.png', word)
 
     
     def cmnd_bg_info(self, bg_arr, bg_path):
