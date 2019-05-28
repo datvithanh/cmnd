@@ -2,3 +2,4 @@ cmnd_id.ttf   helvetica
 cmnd_text.ttf   palatino linotype
 cmnd_old_text.ttf   trixi pro
 cccd_text.ttf   arial
+cccd_text_bold.txt arial bold

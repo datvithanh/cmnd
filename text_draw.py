@@ -5,6 +5,22 @@ from argparse import ArgumentParser
 import cv2
 import numpy as np
 
+class DObj(object):
+    pass
+
+params = DObj()
+params.__dict__ = dict(
+    cmnd_old_to_new_ratio=0.3,
+    cccd_to_cmnd_ratio=0.3, 
+    rotation_ratio=0.2,
+    rotation_angle_lower=-2,
+    rotation_angle_upper=2,
+    scale_coeff_lower=1,
+    scale_coeff_upper=8,
+    comma_drop_rate=0.5,
+    cccd_bold_to_not_ratio=0.4
+)
+
 class TextDraw:
     def __init__(self, font_path, out_dir = 'data/train'):
         self.font_path = font_path
@@ -37,7 +53,7 @@ class TextDraw:
         back_ground_size = back_ground_img.size
 
         #get font-size
-        scale_coeff = random.randint(2,8)
+        scale_coeff = random.randint(params.scale_coeff_lower, params.scale_coeff_upper)
 
         # print(text, scale_coeff)
         font_size = self.text_font(back_ground_size[1], text, scale_coeff)
@@ -57,8 +73,8 @@ class TextDraw:
         draw = ImageDraw.Draw(text_img)
         draw.text((0,13 + random.randint(-1,1)), text, font=font, fill=tuple(average_color))
         text_img = text_img.resize((int(text_img.size[0]*back_ground_size[1]/(text_img.size[1])), back_ground_size[1]))
-        if random.uniform(0,1) <= 0.2:
-            text_img = text_img.rotate(random.uniform(-2,2))
+        if random.uniform(0,1) <= params.rotation_ratio:
+            text_img = text_img.rotate(random.uniform(params.rotation_angle_lower, params.rotation_angle_upper))
         img_arr = np.sum(np.sum(np.array(text_img), axis=1), axis=1)
         top_idx = max(0, [i for i,x in enumerate(img_arr) if x][0] - random.randint(2,10))
         bot_idx = text_img.size[1] - min([i for i,x in reversed(list(enumerate(img_arr))) if x][0] + random.randint(2,10), text_img.size[1])
@@ -86,6 +102,8 @@ class DataGenerator:
         self.cmnd_id_drawer = TextDraw("data/font/cmnd_id.ttf", out_dir = outdir)
         self.cccd_drawer = TextDraw("data/font/cccd_text.ttf", out_dir = outdir)
         self.cmnd_old_drawer = TextDraw("data/font/cmnd_old_text.ttf", out_dir = outdir)
+
+        self.cccd_bold_drawer = TextDraw("data/font/cccd_text_bold.ttf", out_dir = outdir)
 
         self.cmnd_bg_path = 'data/crop/cmnd'
         self.cmnd_bg = [x for x in os.listdir(self.cmnd_bg_path) if x.endswith('.png')]
@@ -138,7 +156,10 @@ class DataGenerator:
 
     def transform(self, word):
         for c in word:
-            if c not in self.valid_chars:
+            if c not in self.valid_chars:                
+                    word = word.replace(c, '')
+        if c == ',':
+            if random.uniform(0,1) < params.comma_drop_rate:
                 word = word.replace(c, '')
         return word
 
@@ -189,7 +210,7 @@ class DataGenerator:
         else:
             te, ns, nq, hk = self.cmnd_bg_info(self.cmnd_bg_valid, self.cmnd_bg_valid_path)      
 
-        if random.uniform(0,1) <= 0.3:
+        if random.uniform(0,1) <= params.cmnd_old_to_new_ratio:
             drawer = self.cmnd_old_drawer
         else:
             drawer = self.cmnd_drawer
@@ -201,15 +222,19 @@ class DataGenerator:
             te, ns, nq, hk = self.cccd_bg_info(self.cccd_bg, self.cccd_bg_path)      
         else:
             te, ns, nq, hk = self.cccd_bg_info(self.cccd_bg_valid, self.cccd_bg_valid_path)
+        if random.uniform(0,1) < params.cccd_bold_to_not_ratio:
+            drawer = self.cccd_bold_drawer
+        else:
+            drawer = self.cccd_drawer
 
-        self.draw(self.cccd_drawer, sample_idx, te, ns, nq, hk)
+        self.draw(drawer, sample_idx, te, ns, nq, hk)
 
 
     def generate(self):
         for i in range(self.samples):
             print(i, self.valid)
 
-            if random.uniform(0,1) <= 0.3:
+            if random.uniform(0,1) <= params.cccd_to_cmnd_ratio:
                 self.gen_cccd(i)
             else:
                 self.gen_cmnd(i)
@@ -223,12 +248,12 @@ def parse_arguments():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    args_ = parse_arguments()
+    # args_ = parse_arguments()
 
-    train_gen = DataGenerator(samples = args_.train, valid = False)
-    valid_gen = DataGenerator(samples = args_.valid, valid = True)
-    train_gen.generate()
-    valid_gen.generate()
+    # train_gen = DataGenerator(samples = args_.train, valid = False)
+    # valid_gen = DataGenerator(samples = args_.valid, valid = True)
+    # train_gen.generate()
+    # valid_gen.generate()
 
-    # text_drawer = TextDraw("data/font/cmnd_text.ttf", './')
-    # text_drawer.draw_text('6.png', 'Nguyễn', 'results.png')
+    text_drawer = TextDraw("data/font/cmnd_text.ttf", out_dir = './')
+    text_drawer.draw_text('6.png', 'Xã', 'results.png')
