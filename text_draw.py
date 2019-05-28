@@ -18,7 +18,8 @@ params.__dict__ = dict(
     scale_coeff_lower=1,
     scale_coeff_upper=8,
     comma_drop_rate=0.5,
-    cccd_bold_to_not_ratio=0.4
+    cccd_bold_to_not_ratio=0.4,
+    bad_printing_rate=0.1
 )
 
 class TextDraw:
@@ -71,15 +72,57 @@ class TextDraw:
         #draw text
         text_img = Image.new('RGBA', (text_size[0], text_size[1] + 20), (0, 0, 0, 0))
         draw = ImageDraw.Draw(text_img)
-        draw.text((0,13 + random.randint(-1,1)), text, font=font, fill=tuple(average_color))
-        text_img = text_img.resize((int(text_img.size[0]*back_ground_size[1]/(text_img.size[1])), back_ground_size[1]))
+        draw.text((0,17 + random.randint(-1,1)), text, font=font, fill=tuple(average_color))
+        text_img.save('temp0.png', format="png")
+
+        #rotate text 
         if random.uniform(0,1) <= params.rotation_ratio:
             text_img = text_img.rotate(random.uniform(params.rotation_angle_lower, params.rotation_angle_upper))
+
+        #loang lổ text
+        if scale_coeff <= 5 and random.uniform(0,1) <= params.bad_printing_rate:
+            orig_arr = np.array(text_img)
+            arr = np.array(text_img)
+            border = np.array(text_img)
+            
+            W,H = text_img.size
+            coef = random.uniform(2.1, 2.3)
+            xdel = [-1, -1, -1, 0, 0, 1, 1, 1]
+            ydel = [-1, 0, 1, -1, 1, -1, 0, 1]
+
+            for i in range(H):
+                for j in range(W):
+                    if i != 0 and i != H-1 and j != 0 and j != W-1:
+                        if all([orig_arr[i+x][j+y][-1] != 0 for x,y in zip(xdel, ydel)]):
+                            if border[i][j][-1] > 254:
+                                border[i][j] = [0,0,0,0]
+                        s = sum(arr[i][j+1]) + sum(arr[i][j-1]) + sum(arr[i+1][j]) + sum(arr[i-1][j])
+                        if s/coef < sum(arr[i][j]):
+                            arr[i][j] = [0,0,0,0]
+
+            for i in reversed(range(H)):
+                for j in reversed(range(W)):
+                    if any(border[i][j] != [0,0,0,0]):
+                        border[i][j][-1] = min(255, border[i][j][-1]+20)
+                    if i != 0 and i != H-1 and j != 0 and j != W-1:
+                        s = sum(arr[i][j+1]) + sum(arr[i][j-1]) + sum(arr[i+1][j]) + sum(arr[i-1][j])
+                        if s/coef < sum(arr[i][j]):
+                            arr[i][j] = [0,0,0,0]
+
+            for i in range(H):
+                for j in range(W):
+                    if all(arr[i][j] == [0,0,0,0]):
+                        arr[i][j] = [sum(x) for x in zip(arr[i][j], border[i][j])]
+        
+            text_img = Image.fromarray(arr.astype('uint8'), 'RGBA')
+        
+        #resize, cut top and bottom text
+        text_img = text_img.resize((int(text_img.size[0]*back_ground_size[1]/(text_img.size[1])), back_ground_size[1]))
         img_arr = np.sum(np.sum(np.array(text_img), axis=1), axis=1)
         top_idx = max(0, [i for i,x in enumerate(img_arr) if x][0] - random.randint(2,10))
         bot_idx = text_img.size[1] - min([i for i,x in reversed(list(enumerate(img_arr))) if x][0] + random.randint(2,10), text_img.size[1])
         text_img = ImageOps.crop(text_img, (0, top_idx, 0, bot_idx))
-
+        
         #cut bg image
         start = random.randint(0, max(1, back_ground_img.size[0] - text_img.size[0]))
         border = (start, top_idx, back_ground_img.size[0] - start - text_img.size[0], bot_idx) # left, up, right, bottom
@@ -256,4 +299,4 @@ if __name__ == "__main__":
     valid_gen.generate()
 
     # text_drawer = TextDraw("data/font/cmnd_text.ttf", out_dir = './')
-    # text_drawer.draw_text('6.png', 'Xã', 'results.png')
+    # text_drawer.draw_text('x.png', 'Nguyễn', 'results.png')
