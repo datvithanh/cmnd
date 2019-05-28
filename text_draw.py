@@ -248,12 +248,12 @@ def parse_arguments():
     return parser.parse_args()
 
 if __name__ == "__main__":
-    # args_ = parse_arguments()
+    args_ = parse_arguments()
 
-    # train_gen = DataGenerator(samples = args_.train, valid = False)
-    # valid_gen = DataGenerator(samples = args_.valid, valid = True)
-    # train_gen.generate()
-    # valid_gen.generate()
+    train_gen = DataGenerator(samples = args_.train, valid = False)
+    valid_gen = DataGenerator(samples = args_.valid, valid = True)
+    train_gen.generate()
+    valid_gen.generate()
 
-    text_drawer = TextDraw("data/font/cmnd_text.ttf", out_dir = './')
-    text_drawer.draw_text('6.png', 'Xã', 'results.png')
+    # text_drawer = TextDraw("data/font/cmnd_text.ttf", out_dir = './')
+    # text_drawer.draw_text('6.png', 'Xã', 'results.png')
